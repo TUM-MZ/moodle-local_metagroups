@@ -82,11 +82,17 @@ function local_metagroups_connect_child_group($parent_course, $child_group) {
     global $DB;
 
     if (!$parent_group = local_metagroups_get_parent_group($parent_course, $child_group)) {
-        $metagroup = new stdClass();
-        $metagroup->courseid = $parent_course->id;
-        $metagroup->name = $child_group->name;
+        $parent_group = new stdClass();
+        $parent_group->courseid = $parent_course->id;
+        $parent_group->name = $child_group->name;
+        $parent_group->description = $child_group->description;
+        $parent_group->descriptionformat = $child_group->descriptionformat;
+        $parent_group->enrolmentkey = $child_group->enrolmentkey;
+        $parent_group->picture = $child_group->picture;
+        $parent_group->hidepicture = $child_group->hidepicture;
 
-        $new_id = groups_create_group($metagroup, false, false);
+
+        $new_id = groups_create_group($parent_group, false, false);
         $DB->insert_record('local_metagroups_connections', array('childgroupid' => $child_group->id, 'parentcourseid' => $parent_course->id, 'parentgroupid' => $new_id), false);
         return $DB->get_record('groups', array('id' => $new_id));
     } else {
