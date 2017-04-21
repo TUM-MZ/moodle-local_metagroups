@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="mod/choice/db" VERSION="20120122" COMMENT="XMLDB file for Moodle mod/choice"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
+>
+    <TABLES>
+        <TABLE NAME="local_metagroups_connections" COMMENT="Connection between child and parent groups">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="childgroupid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="parentcourseid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="parentgroupid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="childgroupid" TYPE="foreign" FIELDS="childgroupid" REFTABLE="groups" REFFIELDS="id"/>
+                <KEY NAME="parentconnection" TYPE="foreign" FIELDS="parentgroupid,parentcourseid" REFTABLE="groups" REFFIELDS="id,courseid"/>
+            </KEYS>
+            <INDEXES>
+                <INDEX NAME="uniqueconnection" UNIQUE="true" FIELDS="childgroupid,parentcourseid"/>
+            </INDEXES>
+        </TABLE>
+    </TABLES>
+</XMLDB>

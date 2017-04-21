@@ -37,25 +37,18 @@ class observers {
     public static function group_created(\core\event\group_created $event) {
         global $DB;
 
-        $group = $event->get_record_snapshot('groups', $event->objectid);
+        $child_group = $event->get_record_snapshot('groups', $event->objectid);
 
-        $courseids = local_metagroups_parent_courses($group->courseid);
+        $courseids = local_metagroups_parent_courses($child_group->courseid);
         foreach ($courseids as $courseid) {
-            $course = get_course($courseid);
+            $parent_course = get_course($courseid);
 
             // If parent course doesn't use groups, we can skip synchronization.
-            if (groups_get_course_groupmode($course) == NOGROUPS) {
+            if (groups_get_course_groupmode($parent_course) == NOGROUPS) {
                 continue;
             }
 
-            if (! $DB->record_exists('groups', array('courseid' => $course->id, 'idnumber' => $group->id))) {
-                $metagroup = new \stdClass();
-                $metagroup->courseid = $course->id;
-                $metagroup->idnumber = $group->id;
-                $metagroup->name = $group->name;
-
-                groups_create_group($metagroup, false, false);
-            }
+            local_metagroups_connect_child_group($parent_course, $child_group);
         }
     }
 
@@ -68,16 +61,16 @@ class observers {
     public static function group_updated(\core\event\group_updated $event) {
         global $DB;
 
-        $group = $event->get_record_snapshot('groups', $event->objectid);
+        $child_group = $event->get_record_snapshot('groups', $event->objectid);
 
-        $courseids = local_metagroups_parent_courses($group->courseid);
+        $courseids = local_metagroups_parent_courses($child_group->courseid);
         foreach ($courseids as $courseid) {
-            $course = get_course($courseid);
+            $parent_course = get_course($courseid);
 
-            if ($metagroup = $DB->get_record('groups', array('courseid' => $course->id, 'idnumber' => $group->id))) {
-                $metagroup->name = $group->name;
+            if ($parent_group = local_metagroups_get_parent_group($parent_course, $child_group)) {
+                $parent_group->name = $child_group->name;
 
-                groups_update_group($metagroup, false, false);
+                groups_update_group($parent_group, false, false);
             }
         }
     }
@@ -91,14 +84,14 @@ class observers {
     public static function group_deleted(\core\event\group_deleted $event) {
         global $DB;
 
-        $group = $event->get_record_snapshot('groups', $event->objectid);
+        $child_group = $event->get_record_snapshot('groups', $event->objectid);
 
-        $courseids = local_metagroups_parent_courses($group->courseid);
+        $courseids = local_metagroups_parent_courses($child_group->courseid);
         foreach ($courseids as $courseid) {
-            $course = get_course($courseid);
+            $parent_course = get_course($courseid);
 
-            if ($metagroup = $DB->get_record('groups', array('courseid' => $course->id, 'idnumber' => $group->id))) {
-                groups_delete_group($metagroup);
+            if ($parent_group = local_metagroups_get_parent_group($parent_course, $child_group)) {
+                groups_delete_group($parent_group);
             }
         }
     }
@@ -112,15 +105,15 @@ class observers {
     public static function group_member_added(\core\event\group_member_added $event) {
         global $DB;
 
-        $group = $event->get_record_snapshot('groups', $event->objectid);
+        $child_group = $event->get_record_snapshot('groups', $event->objectid);
         $user = \core_user::get_user($event->relateduserid, '*', MUST_EXIST);
 
-        $courseids = local_metagroups_parent_courses($group->courseid);
-        foreach ($courseids as $courseid) {
-            $course = get_course($courseid);
+        $courseids = local_metagroups_parent_courses($child_group->courseid);
+        foreach ($courseids as $parent_course_id) {
+            $parent_course = get_course($parent_course_id);
 
-            if ($metagroup = $DB->get_record('groups', array('courseid' => $course->id, 'idnumber' => $group->id))) {
-                groups_add_member($metagroup, $user, 'local_metagroups', $group->id);
+            if ($parent_group = local_metagroups_get_parent_group($parent_course, $child_group)) {
+                groups_add_member($parent_group, $user, 'local_metagroups', $child_group->id);
             }
         }
     }
@@ -134,15 +127,15 @@ class observers {
     public static function group_member_removed(\core\event\group_member_removed $event) {
         global $DB;
 
-        $group = $event->get_record_snapshot('groups', $event->objectid);
+        $child_group = $event->get_record_snapshot('groups', $event->objectid);
         $user = \core_user::get_user($event->relateduserid, '*', MUST_EXIST);
 
-        $courseids = local_metagroups_parent_courses($group->courseid);
+        $courseids = local_metagroups_parent_courses($child_group->courseid);
         foreach ($courseids as $courseid) {
-            $course = get_course($courseid);
+            $parent_course = get_course($courseid);
 
-            if ($metagroup = $DB->get_record('groups', array('courseid' => $course->id, 'idnumber' => $group->id))) {
-                groups_remove_member($metagroup, $user);
+            if ($parent_group = local_metagroups_get_parent_group($parent_course, $child_group)) {
+                groups_remove_member($parent_group, $user);
             }
         }
     }

@@ -57,6 +57,44 @@ function local_metagroups_child_courses($courseid) {
 }
 
 /**
+ * Get the connected group from the parent course or return null if no connection exists
+ * @param object $parent_course
+ * @param object $child_group
+ * @return object - group from the parent course
+ */
+function local_metagroups_get_parent_group($parent_course, $child_group) {
+    global $DB;
+    $parent_group = $DB->get_record('local_metagroups_connections', array('childgroupid' => $child_group->id, 'parentcourseid' => $parent_course->id), 'parentgroupid');
+    if (!$parent_group) {
+        return null;
+    } else {
+        return $DB->get_record('groups', array('id' => $parent_group->parentgroupid));
+    }
+}
+
+/**
+ * Create a parent group from a child group and add a connection, if the connection doesn't exist
+ * @param object $parent_course
+ * @param object $child_group
+ * @return int - id of the new group
+ */
+function local_metagroups_connect_child_group($parent_course, $child_group) {
+    global $DB;
+
+    if (!$parent_group = local_metagroups_get_parent_group($parent_course, $child_group)) {
+        $metagroup = new stdClass();
+        $metagroup->courseid = $parent_course->id;
+        $metagroup->name = $child_group->name;
+
+        $new_id = groups_create_group($metagroup, false, false);
+        $DB->insert_record('local_metagroups_connections', array('childgroupid' => $child_group->id, 'parentcourseid' => $parent_course->id, 'parentgroupid' => $new_id), false);
+        return $DB->get_record('groups', array('id' => $new_id));
+    } else {
+        return $parent_group;
+    }
+}
+
+/**
  * Run synchronization process
  *
  * @param progress_trace $trace
@@ -76,9 +114,9 @@ function local_metagroups_sync(progress_trace $trace, $courseid = null) {
         $parent = get_course($courseid);
 
         // If parent course doesn't use groups, we can skip synchronization.
-        if (groups_get_course_groupmode($parent) == NOGROUPS) {
-            continue;
-        }
+        // if (groups_get_course_groupmode($parent) == NOGROUPS) {
+        //    continue;
+        // }
 
         $trace->output($parent->fullname, 1);
 
@@ -88,21 +126,14 @@ function local_metagroups_sync(progress_trace $trace, $courseid = null) {
             $trace->output($child->fullname, 2);
 
             $groups = groups_get_all_groups($child->id);
-            foreach ($groups as $group) {
-                if (! $metagroup = $DB->get_record('groups', array('courseid' => $parent->id, 'idnumber' => $group->id))) {
-                    $metagroup = new stdClass();
-                    $metagroup->courseid = $parent->id;
-                    $metagroup->idnumber = $group->id;
-                    $metagroup->name = $group->name;
+            foreach ($groups as $child_group) {
+                $trace->output($child_group->name, 3);
+                $parent_group = local_metagroups_connect_child_group($parent, $child_group);
 
-                    $metagroup->id = groups_create_group($metagroup, false, false);
-                }
 
-                $trace->output($metagroup->name, 3);
-
-                $users = groups_get_members($group->id);
+                $users = groups_get_members($child_group->id);
                 foreach ($users as $user) {
-                    groups_add_member($metagroup->id, $user->id, 'local_metagroups', $group->id);
+                    groups_add_member($parent_group->id, $user->id, 'local_metagroups', $child_group->id);
                 }
             }
         }
